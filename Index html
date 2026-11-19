@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Salon Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f3f8;--card:#fff;--ink:#2a1636;--mut:#7a6a85;--line:#e6dded;--pri:#6b2d8f;--pri2:#f0e2f8;--pos:#177a4b;--neg:#c2273d;--mp:#2a9d3f;--cash:#c98a12;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17101d;--card:#241830;--ink:#f1e8f7;--mut:#a998b5;--line:#392849;--pri:#c68ae8;--pri2:#35214a;--pos:#4fd18b;--neg:#ff7a8d;--mp:#59d36d;--cash:#f0b948;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17101d;--card:#241830;--ink:#f1e8f7;--mut:#a998b5;--line:#392849;--pri:#c68ae8;--pri2:#35214a;--pos:#4fd18b;--neg:#ff7a8d;--mp:#59d36d;--cash:#f0b948;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:15px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card)}
+h1{font-size:20px;margin:0;font-weight:800}h2{font-size:16px;margin:0 0 10px}
+nav{display:flex;gap:4px;overflow-x:auto;padding:10px 14px}
+nav button{border:0;background:none;color:var(--mut);padding:8px 14px;border-radius:20px;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+nav button.on{background:var(--pri);color:#fff}
+main{max-width:1050px;margin:0 auto;padding:0 14px 40px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.stat small{color:var(--mut);display:block;margin-bottom:4px}.stat b{font-size:24px;font-weight:800}
+.pos{color:var(--pos)}.neg{color:var(--neg)}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:10px}
+input,select,button.btn{font:inherit;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);margin-top:3px}
+button.btn{background:var(--pri);color:#fff;border:0;font-weight:700;cursor:pointer;margin-top:6px}
+button.btn.sec{background:var(--pri2);color:var(--pri)}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:520px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:600;font-size:13px}
+td.r,th.r{text-align:right}
+.pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600}
+.pill.cash{background:color-mix(in srgb,var(--cash) 22%,transparent);color:var(--cash)}
+.pill.mpesa{background:color-mix(in srgb,var(--mp) 22%,transparent);color:var(--mp)}
+.x{background:none;border:0;color:var(--neg);cursor:pointer;font-size:16px}
+.bars{display:flex;gap:8px;align-items:flex-end;height:120px}
+.bars div{flex:1;text-align:center;font-size:11px;color:var(--mut)}.bars i{display:block;border-radius:6px 6px 0 0;min-height:3px}
+.empty{color:var(--mut);padding:14px 4px}
+.tag{background:var(--pri2);color:var(--pri);border-radius:8px;padding:2px 8px;font-size:12px;margin:2px 3px 2px 0;display:inline-block}
+.two{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.toast{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:20px;opacity:0;transition:.25s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header><h1>Salon Manager</h1><label style="margin:0">Date <input type="date" id="day"></label></header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<div class="toast" id="toast"></div>
+<script>
+const KEY='salon_v1',TABS=['Dashboard','New sale','Staff & services','Daily record','Expenses'];
+const uid=()=>Math.random().toString(36).slice(2,9);
+const today=()=>new Date().toISOString().slice(0,10);
+const fmt=n=>'KES '+Math.round(n).toLocaleString();
+let S={services:[{id:'s1',name:'Makeup',price:2500},{id:'s2',name:'Manicure',price:800},{id:'s3',name:'Pedicure',price:1000},{id:'s4',name:'Nails',price:1500}],
+staff:[{id:'p1',name:'Amina',pct:40,svc:['s1','s4']},{id:'p2',name:'Wanjiru',pct:35,svc:['s2','s3','s4']}],sales:[],exp:[]};
+try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let tab=0,day=today(),range='day';
+const $=s=>document.querySelector(s);
+const svc=id=>S.services.find(x=>x.id==id)||{name:'?',price:0};
+const stf=id=>S.staff.find(x=>x.id==id)||{name:'(removed)',pct:0};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1800)}
+function inRange(d){return range=='all'||(range=='month'?d.slice(0,7)==day.slice(0,7):d==day)}
+function totals(sales,exp){
+ const rev=sales.reduce((a,s)=>a+s.price,0),com=sales.reduce((a,s)=>a+s.comm,0),ex=exp.reduce((a,e)=>a+e.amt,0);
+ const sum=(l,m,k)=>l.filter(x=>x.pay==m).reduce((a,x)=>a+x[k],0);
+ return{rev,com,ex,profit:rev-com-ex,cash:sum(sales,'cash','price')-sum(exp,'cash','amt'),mp:sum(sales,'mpesa','price')-sum(exp,'mpesa','amt'),
+ cashIn:sum(sales,'cash','price'),mpIn:sum(sales,'mpesa','price')}}
+function nav(){$('#nav').innerHTML=TABS.map((t,i)=>`<button class="${i==tab?'on':''}" onclick="tab=${i};render()">${t}</button>`).join('')}
+function render(){nav();$('#app').innerHTML=[dash,sale,staffTab,daily,expenses][tab]();if(tab==1)fillSvc()}
+$('#day').value=day;$('#day').onchange=e=>{day=e.target.value||today();render()};
+
+function dash(){
+ const sales=S.sales.filter(s=>inRange(s.date)),exp=S.exp.filter(e=>inRange(e.date)),t=totals(sales,exp);
+ const per=S.staff.map(p=>{const m=sales.filter(s=>s.staff==p.id);const by={};m.forEach(s=>by[s.svc]=(by[s.svc]||0)+1);
+  return{p,clients:new Set(m.map(s=>s.cust.toLowerCase()+s.date)).size,jobs:m.length,rev:m.reduce((a,s)=>a+s.price,0),com:m.reduce((a,s)=>a+s.comm,0),by}}).sort((a,b)=>b.jobs-a.jobs);
+ const days=[...Array(7)].map((_,i)=>{const d=new Date(day);d.setDate(d.getDate()-6+i);const k=d.toISOString().slice(0,10);return[k,totals(S.sales.filter(s=>s.date==k),S.exp.filter(e=>e.date==k)).profit]});
+ const mx=Math.max(1,...days.map(d=>Math.abs(d[1])));
+ const sv=S.services.map(x=>({n:x.name,c:sales.filter(s=>s.svc==x.id).length,r:sales.filter(s=>s.svc==x.id).reduce((a,s)=>a+s.price,0)}));
+ return`<div class="card"><div class="row"><label>View<select onchange="range=this.value;render()"><option value="day" ${range=='day'?'selected':''}>Selected day</option><option value="month" ${range=='month'?'selected':''}>Selected month</option><option value="all" ${range=='all'?'selected':''}>All time</option></select></label></div></div>
+ <div class="grid">
+ <div class="card stat"><small>Total sales</small><b>${fmt(t.rev)}</b></div>
+ <div class="card stat"><small>Commission owed to staff</small><b>${fmt(t.com)}</b></div>
+ <div class="card stat"><small>Expenses</small><b>${fmt(t.ex)}</b></div>
+ <div class="card stat"><small>${t.profit>=0?'Profit':'Loss'}</small><b class="${t.profit>=0?'pos':'neg'}">${fmt(Math.abs(t.profit))}</b></div>
+ <div class="card stat"><small>Money in cash <span class="pill cash">cash</span></small><b>${fmt(t.cash)}</b></div>
+ <div class="card stat"><small>Money in M-Pesa <span class="pill mpesa">M-Pesa</span></small><b>${fmt(t.mp)}</b></div></div>
+ <div class="two"><div class="card"><h2>Profit / loss, last 7 days</h2><div class="bars">${days.map(d=>`<div><i style="height:${Math.abs(d[1])/mx*90}px;background:${d[1]>=0?'var(--pos)':'var(--neg)'}"></i>${d[0].slice(8)}</div>`).join('')}</div></div>
+ <div class="card"><h2>Services</h2><div class="wrap"><table><tr><th>Service</th><th class="r">Clients</th><th class="r">Sales</th></tr>${sv.map(x=>`<tr><td>${x.n}</td><td class="r">${x.c}</td><td class="r">${fmt(x.r)}</td></tr>`).join('')}</table></div></div></div>
+ <div class="card"><h2>Staff performance</h2>${per.length?`<div class="wrap"><table><tr><th>Staff</th><th>Services offered</th><th class="r">Clients</th><th class="r">Sales</th><th class="r">Commission</th></tr>${per.map(x=>`<tr><td><b>${x.p.name}</b> (${x.p.pct}%)</td><td>${Object.entries(x.by).map(([k,v])=>`<span class="tag">${svc(k).name} ×${v}</span>`).join('')||'—'}</td><td class="r">${x.jobs}</td><td class="r">${fmt(x.rev)}</td><td class="r">${fmt(x.com)}</td></tr>`).join('')}</table></div>`:'<div class="empty">Add staff to see who serves the most clients.</div>'}</div>`}
+
+function sale(){
+ const f=S.staff[0];
+ return`<div class="card"><h2>Record a service</h2>
+ <div class="row"><label>Customer name<input id="cu" placeholder="e.g. Grace"></label>
+ <label>Staff<select id="st" onchange="fillSvc()">${S.staff.map(p=>`<option value="${p.id}">${p.name} (${p.pct}%)</option>`).join('')}</select></label>
+ <label>Service<select id="sv" onchange="fillPrice()"></select></label>
+ <label>Price (KES)<input id="pr" type="number" min="0" oninput="preview()"></label>
+ <label>Paid by<select id="pay"><option value="cash">Cash</option><option value="mpesa">M-Pesa</option></select></label></div>
+ <div id="pv" class="empty"></div><button class="btn" onclick="addSale()">Save sale</button></div>`}
+function fillSvc(){const p=S.staff.find(x=>x.id==$('#st')?.value);if(!p)return;const l=S.services.filter(s=>p.svc.includes(s.id));$('#sv').innerHTML=l.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');fillPrice()}
+function fillPrice(){const s=svc($('#sv').value);$('#pr').value=s.price||'';preview()}
+function preview(){const p=stf($('#st').value),pr=+$('#pr').value||0;$('#pv').innerHTML=`Commission for ${p.name}: <b>${fmt(pr*p.pct/100)}</b> · Salon keeps <b>${fmt(pr-pr*p.pct/100)}</b>`}
+function addSale(){const p=stf($('#st').value),pr=+$('#pr').value;if(!$('#cu').value.trim()||!pr||!$('#sv').value)return toast('Enter customer, service and price');
+ S.sales.push({id:uid(),date:day,cust:$('#cu').value.trim(),staff:$('#st').value,svc:$('#sv').value,price:pr,comm:pr*p.pct/100,pay:$('#pay').value});save();toast('Sale saved for '+day);render()}
+
+function staffTab(){
+ return`<div class="two"><div class="card"><h2>Add staff</h2><label>Name<input id="sn"></label><label>Commission %<input id="sp" type="number" min="0" max="100" value="40"></label>
+ <label>Services they offer</label>${S.services.map(s=>`<label style="display:inline-block;margin-right:12px"><input type="checkbox" class="sc" value="${s.id}" checked style="width:auto"> ${s.name}</label>`).join('')}
+ <button class="btn" onclick="addStaff()">Add staff</button></div>
+ <div class="card"><h2>Services & prices</h2>${S.services.map(s=>`<div class="row" style="margin-bottom:6px"><b style="flex:2">${s.name}</b><input type="number" value="${s.price}" onchange="svc('${s.id}').price=+this.value;save();toast('Price updated')"></div>`).join('')}
+ <div class="row"><label>New service<input id="ns"></label><label>Price<input id="np" type="number"></label><button class="btn sec" onclick="addService()">Add</button></div></div></div>
+ <div class="card"><h2>Team</h2>${S.staff.length?S.staff.map(p=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="flex:2"><b>${p.name}</b><br>${p.svc.map(i=>`<span class="tag">${svc(i).name}</span>`).join('')}</div><label style="margin:0">Commission %<input type="number" value="${p.pct}" onchange="stf('${p.id}').pct=+this.value;save();toast('Commission updated')"></label><button class="x" style="flex:0" onclick="delStaff('${p.id}')">✕</button></div>`).join(''):'<div class="empty">No staff yet.</div>'}</div>`}
+function addStaff(){const n=$('#sn').value.trim();if(!n)return toast('Enter a name');S.staff.push({id:uid(),name:n,pct:+$('#sp').value||0,svc:[...document.querySelectorAll('.sc:checked')].map(c=>c.value)});save();render()}
+function addService(){const n=$('#ns').value.trim();if(!n)return;S.services.push({id:uid(),name:n,price:+$('#np').value||0});save();render()}
+function delStaff(id){if(confirm('Remove this staff member? Past sales stay in the records.')){S.staff=S.staff.filter(p=>p.id!=id);save();render()}}
+
+function daily(){
+ const sales=S.sales.filter(s=>s.date==day),exp=S.exp.filter(e=>e.date==day),t=totals(sales,exp);
+ return`<div class="card"><h2>Daily record for ${day}</h2><div class="grid">
+ <div class="stat"><small>Sales</small><b>${fmt(t.rev)}</b></div><div class="stat"><small>Commission</small><b>${fmt(t.com)}</b></div><div class="stat"><small>Expenses</small><b>${fmt(t.ex)}</b></div>
+ <div class="stat"><small>${t.profit>=0?'Profit':'Loss'}</small><b class="${t.profit>=0?'pos':'neg'}">${fmt(Math.abs(t.profit))}</b></div>
+ <div class="stat"><small>Cash</small><b>${fmt(t.cash)}</b></div><div class="stat"><small>M-Pesa</small><b>${fmt(t.mp)}</b></div></div></div>
+ <div class="card"><h2>Services done</h2>${sales.length?`<div class="wrap"><table><tr><th>Customer</th><th>Service</th><th>Staff</th><th>Paid</th><th class="r">Price</th><th class="r">Commission</th><th></th></tr>${sales.map(s=>`<tr><td>${s.cust}</td><td>${svc(s.svc).name}</td><td>${stf(s.staff).name}</td><td><span class="pill ${s.pay}">${s.pay=='cash'?'Cash':'M-Pesa'}</span></td><td class="r">${fmt(s.price)}</td><td class="r">${fmt(s.comm)}</td><td><button class="x" onclick="del('sales','${s.id}')">✕</button></td></tr>`).join('')}</table></div>`:'<div class="empty">No services recorded this day. Use “New sale” to add one.</div>'}</div>`}
+
+function expenses(){
+ const l=S.exp.filter(e=>e.date==day);
+ return`<div class="card"><h2>Add expense for ${day}</h2><div class="row"><label>What for<input id="ed" placeholder="Rent, products, water…"></label><label>Amount (KES)<input id="ea" type="number"></label>
+ <label>Paid from<select id="ep"><option value="cash">Cash</option><option value="mpesa">M-Pesa</option></select></label></div><button class="btn" onclick="addExp()">Save expense</button></div>
+ <div class="card"><h2>Expenses on ${day}</h2>${l.length?`<div class="wrap"><table><tr><th>Item</th><th>Paid from</th><th class="r">Amount</th><th></th></tr>${l.map(e=>`<tr><td>${e.desc}</td><td><span class="pill ${e.pay}">${e.pay=='cash'?'Cash':'M-Pesa'}</span></td><td class="r">${fmt(e.amt)}</td><td><button class="x" onclick="del('exp','${e.id}')">✕</button></td></tr>`).join('')}</table></div>`:'<div class="empty">No expenses recorded this day.</div>'}</div>`}
+function addExp(){const a=+$('#ea').value,d=$('#ed').value.trim();if(!a||!d)return toast('Enter item and amount');S.exp.push({id:uid(),date:day,desc:d,amt:a,pay:$('#ep').value});save();toast('Expense saved');render()}
+function del(k,id){S[k]=S[k].filter(x=>x.id!=id);save();render()}
+render();
+</script>
+</body>
+</html>
